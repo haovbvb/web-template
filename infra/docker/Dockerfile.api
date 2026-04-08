@@ -1,0 +1,38 @@
+FROM node:20-alpine AS base
+
+WORKDIR /app
+RUN corepack enable
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+COPY apps ./apps
+COPY packages ./packages
+COPY scripts ./scripts
+
+RUN pnpm install --frozen-lockfile
+RUN pnpm --filter @apps/api prisma:generate
+
+FROM base AS dev
+
+WORKDIR /app
+EXPOSE 3000
+CMD ["pnpm", "--filter", "@apps/api", "dev"]
+
+FROM base AS build
+
+WORKDIR /app
+RUN pnpm --filter @apps/api build
+
+FROM node:20-alpine AS prod
+
+WORKDIR /app
+RUN corepack enable
+ENV NODE_ENV=production
+
+COPY --from=base /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml /app/turbo.json ./
+COPY --from=base /app/apps ./apps
+COPY --from=base /app/packages ./packages
+COPY --from=base /app/node_modules ./node_modules
+COPY --from=build /app/apps/api/dist ./apps/api/dist
+
+EXPOSE 3000
+CMD ["pnpm", "--filter", "@apps/api", "start"]
