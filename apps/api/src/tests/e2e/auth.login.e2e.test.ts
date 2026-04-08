@@ -1,10 +1,12 @@
 import { INestApplication } from '@nestjs/common';
+import { HttpAdapterHost } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { afterEach, describe, expect, it } from 'vitest';
 import { AppModule } from '../../app.module';
 import { MongoConnectionService } from '../../infrastructure/database/mongo.connection';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { SentryExceptionFilter } from '../../infrastructure/observability/sentry-exception.filter';
 
 let app: INestApplication | undefined;
 
@@ -16,7 +18,7 @@ afterEach(async () => {
 });
 
 describe('Auth login e2e', () => {
-  it('returns access and refresh tokens', async () => {
+  async function bootstrapTestApp(): Promise<INestApplication> {
     process.env.DB_PROVIDER = 'postgres';
 
     const prismaMock = {
@@ -48,9 +50,17 @@ describe('Auth login e2e', () => {
       .compile();
 
     app = moduleRef.createNestApplication();
+    const { httpAdapter } = app.get(HttpAdapterHost);
+    app.useGlobalFilters(new SentryExceptionFilter(httpAdapter));
     await app.init();
 
-    const response = await request(app.getHttpServer()).post('/auth/login').send({
+    return app;
+  }
+
+  it('returns access and refresh tokens', async () => {
+    const testApp = await bootstrapTestApp();
+
+    const response = await request(testApp.getHttpServer()).post('/auth/login').send({
       email: 'owner@example.com',
       password: 'pass123',
       tenantId: 't1',
@@ -59,5 +69,22 @@ describe('Auth login e2e', () => {
     expect(response.status).toBe(201);
     expect(response.body.accessToken).toBeTypeOf('string');
     expect(response.body.refreshToken).toBeTypeOf('string');
+  });
+
+  it('returns localized error message for zh-CN', async () => {
+    const testApp = await bootstrapTestApp();
+
+    const response = await request(testApp.getHttpServer())
+      .post('/auth/login')
+      .set('Accept-Language', 'zh-CN')
+      .send({
+        email: '',
+        password: '',
+        tenantId: 't1',
+      });
+
+    expect(response.status).toBe(401);
+    expect(response.headers['content-language']).toBe('zh-CN');
+    expect(response.body.message).toBe('邮箱或密码不正确');
   });
 });

@@ -285,6 +285,17 @@ curl http://localhost:3000/users/me \
 	-H "Authorization: Bearer <accessToken>"
 ```
 
+5. API 国际化错误消息（基于 `Accept-Language`）
+
+```bash
+curl -X POST http://localhost:3000/auth/login \
+	-H "Content-Type: application/json" \
+	-H "Accept-Language: zh-CN" \
+	-d '{"email":"","password":"","tenantId":"t1"}'
+```
+
+返回会带 `Content-Language: zh-CN`，并输出中文错误消息。
+
 5. 使用 token 内 tenantId 验证租户隔离读取
 
 ```bash
@@ -348,6 +359,13 @@ pnpm --filter @apps/web dev
 
 - 统一查看任务健康、发送通知、上传文件、查询审计日志
 - 路由需要 `org:manage` 权限
+
+6. 国际化切换（i18n）：
+
+- 顶部导航可切换 `中文 / English`
+- 语言选择会持久化到 `localStorage(app.locale)`
+- 首次访问会根据浏览器语言自动选择（中文浏览器默认 `zh-CN`，否则 `en-US`）
+- 可执行 `pnpm --filter @apps/web test` 校验语言推断与持久化逻辑
 
 ### 6.7 任务中心与审计中心验证
 

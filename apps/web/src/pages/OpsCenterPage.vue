@@ -1,39 +1,39 @@
 <template>
   <section style="display: grid; gap: 16px">
-    <h2>Ops Center</h2>
-    <p>Notification / File / Job / Audit unified management page.</p>
+    <h2>{{ t('ops.title') }}</h2>
+    <p>{{ t('ops.description') }}</p>
 
     <div style="display: grid; gap: 8px; border: 1px solid #ddd; padding: 12px">
-      <h3>Jobs</h3>
-      <button @click="loadJobHealth">Load Job Health</button>
+      <h3>{{ t('ops.jobs') }}</h3>
+      <button @click="loadJobHealth">{{ t('ops.loadHealth') }}</button>
       <pre>{{ jobHealth }}</pre>
     </div>
 
     <div style="display: grid; gap: 8px; border: 1px solid #ddd; padding: 12px">
-      <h3>Notifications</h3>
+      <h3>{{ t('ops.notifications') }}</h3>
       <div style="display: flex; gap: 8px; flex-wrap: wrap">
-        <input v-model="notifyTo" placeholder="to" />
-        <input v-model="notifyTitle" placeholder="title" />
-        <input v-model="notifyContent" placeholder="content" />
-        <button @click="sendNotification">Send</button>
+        <input v-model="notifyTo" :placeholder="t('ops.to')" />
+        <input v-model="notifyTitle" :placeholder="t('ops.notifyTitle')" />
+        <input v-model="notifyContent" :placeholder="t('ops.notifyContent')" />
+        <button @click="sendNotification">{{ t('ops.send') }}</button>
       </div>
       <pre>{{ notificationResult }}</pre>
     </div>
 
     <div style="display: grid; gap: 8px; border: 1px solid #ddd; padding: 12px">
-      <h3>Files</h3>
+      <h3>{{ t('ops.files') }}</h3>
       <div style="display: flex; gap: 8px; flex-wrap: wrap">
-        <input v-model="fileName" placeholder="fileName" />
-        <input v-model="fileContent" placeholder="content" />
-        <button @click="uploadFile">Upload</button>
-        <button @click="loadFiles">Refresh List</button>
+        <input v-model="fileName" :placeholder="t('ops.fileName')" />
+        <input v-model="fileContent" :placeholder="t('ops.fileContent')" />
+        <button @click="uploadFile">{{ t('ops.upload') }}</button>
+        <button @click="loadFiles">{{ t('ops.refreshList') }}</button>
       </div>
       <pre>{{ filesResult }}</pre>
     </div>
 
     <div style="display: grid; gap: 8px; border: 1px solid #ddd; padding: 12px">
-      <h3>Audit</h3>
-      <button @click="loadAudit">Load Audit Entries</button>
+      <h3>{{ t('ops.audit') }}</h3>
+      <button @click="loadAudit">{{ t('ops.loadAudit') }}</button>
       <pre>{{ auditResult }}</pre>
     </div>
   </section>
@@ -41,21 +41,23 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '../stores/auth';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:3010';
 const auth = useAuthStore();
+const { t } = useI18n();
 
 const notifyTo = ref('owner@example.com');
-const notifyTitle = ref('Hello');
-const notifyContent = ref('Welcome');
-const fileName = ref('readme.txt');
-const fileContent = ref('hello template');
+const notifyTitle = ref(t('ops.defaultNotifyTitle'));
+const notifyContent = ref(t('ops.defaultNotifyContent'));
+const fileName = ref(t('ops.defaultFileName'));
+const fileContent = ref(t('ops.defaultFileContent'));
 
-const jobHealth = ref('-');
-const notificationResult = ref('-');
-const filesResult = ref('-');
-const auditResult = ref('-');
+const jobHealth = ref(t('app.na'));
+const notificationResult = ref(t('app.na'));
+const filesResult = ref(t('app.na'));
+const auditResult = ref(t('app.na'));
 
 function getHeaders(withJson = false) {
   const headers: Record<string, string> = {

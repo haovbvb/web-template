@@ -1,19 +1,24 @@
 <template>
   <section>
-    <h2>Home</h2>
-    <p>Authenticated: {{ auth.isAuthed ? 'yes' : 'no' }}</p>
-    <p>Tenant: {{ auth.profile?.tenantId ?? '-' }}</p>
-    <p>Roles: {{ (auth.profile?.roles ?? []).join(', ') || '-' }}</p>
-    <p>Edition: {{ capabilities.edition }}</p>
-    <p>Feature(openPlatform): {{ capabilities.features.openPlatform ? 'on' : 'off' }}</p>
+    <h2>{{ t('home.title') }}</h2>
+    <p>{{ t('home.authenticated') }}: {{ auth.isAuthed ? t('home.yes') : t('home.no') }}</p>
+    <p>{{ t('home.tenant') }}: {{ auth.profile?.tenantId ?? t('app.na') }}</p>
+    <p>{{ t('home.roles') }}: {{ (auth.profile?.roles ?? []).join(', ') || t('app.na') }}</p>
+    <p>{{ t('home.edition') }}: {{ capabilities.edition }}</p>
+    <p>
+      {{ t('home.featureOpenPlatform') }}:
+      {{ capabilities.features.openPlatform ? t('home.on') : t('home.off') }}
+    </p>
   </section>
 </template>
 
 <script setup lang="ts">
 import { onMounted, reactive } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '../stores/auth';
 
 const auth = useAuthStore();
+const { t } = useI18n();
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:3010';
 
 const capabilities = reactive({
