@@ -11,12 +11,11 @@ REGISTRY_PREFIX="${REGISTRY_PREFIX:-ghcr.io/example}"
 
 export API_IMAGE="${REGISTRY_PREFIX}/enterprise-api:${IMAGE_TAG}"
 export WEB_IMAGE="${REGISTRY_PREFIX}/enterprise-web:${IMAGE_TAG}"
-export WORKER_IMAGE="${REGISTRY_PREFIX}/enterprise-worker:${IMAGE_TAG}"
 
 printf '%s\n' "$IMAGE_TAG" > "$STATE_DIR/last_tag.txt"
 
 echo "Deploying tag: $IMAGE_TAG"
-docker compose -f "$COMPOSE_FILE" pull web api admin-worker
-docker compose -f "$COMPOSE_FILE" up -d web api admin-worker
+docker compose -f "$COMPOSE_FILE" pull web api
+docker compose -f "$COMPOSE_FILE" up -d web api
 
 echo "Deployment completed with tag: $IMAGE_TAG"

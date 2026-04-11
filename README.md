@@ -26,8 +26,7 @@
 .
 ├─ apps/
 │  ├─ web/              # 前端主应用
-│  ├─ api/              # 后端 API 服务
-│  └─ admin-worker/     # 异步任务/定时任务
+│  └─ api/              # 后端 API 服务
 ├─ packages/
 │  ├─ ui/               # 组件库
 │  ├─ types/            # 前后端共享类型
@@ -90,7 +89,7 @@ REDIS_URL=redis://redis:6379
 
 ## 5. Docker 部署
 
-- `infra/docker/Dockerfile.api` / `Dockerfile.web` / `Dockerfile.worker` 已改为多阶段构建（dev/build/prod）。
+- `infra/docker/Dockerfile.api` / `Dockerfile.web` 已改为多阶段构建（dev/build/prod）。
 - `docker-compose.dev.yml` 与 `docker-compose.prod.yml` 已包含服务健康检查、启动顺序依赖与生产资源限制。
 
 ### 5.1 本地开发（推荐）
@@ -113,7 +112,6 @@ docker compose -f infra/docker/docker-compose.prod.yml up -d
 
 - `WEB_IMAGE`
 - `API_IMAGE`
-- `WORKER_IMAGE`
 
 未传入时默认使用 `ghcr.io/example/*:latest`。
 
@@ -122,7 +120,7 @@ docker compose -f infra/docker/docker-compose.prod.yml up -d
 1. GitHub Actions 镜像发布
 
 - 工作流：[.github/workflows/docker-release.yml](.github/workflows/docker-release.yml)
-- 推送 `main` 或手动触发后，构建并推送 web/api/worker 三个 prod 镜像到 GHCR。
+- 推送 `main` 或手动触发后，构建并推送 web/api 两个 prod 镜像到 GHCR。
 
 2. 测试环境一键发布
 
@@ -157,7 +155,6 @@ REGISTRY_PREFIX=ghcr.io/<your-org> ./infra/docker/rollback-test.sh <previous-tag
 
 - web
 - api
-- admin-worker
 - redis
 - postgres（当 DB_PROVIDER=postgres）
 - mongo（当 DB_PROVIDER=mongo）

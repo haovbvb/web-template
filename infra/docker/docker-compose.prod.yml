@@ -56,25 +56,6 @@ services:
       mongo:
         condition: service_healthy
 
-  admin-worker:
-    image: ${WORKER_IMAGE:-ghcr.io/example/enterprise-worker:latest}
-    build:
-      context: ../..
-      dockerfile: infra/docker/Dockerfile.worker
-      target: prod
-    restart: unless-stopped
-    environment:
-      - NODE_ENV=production
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-    mem_limit: 256m
-    cpus: 0.5
-    depends_on:
-      redis:
-        condition: service_healthy
-      api:
-        condition: service_healthy
-
   redis:
     image: redis:7-alpine
     restart: unless-stopped

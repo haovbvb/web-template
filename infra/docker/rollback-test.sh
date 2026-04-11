@@ -22,12 +22,11 @@ fi
 REGISTRY_PREFIX="${REGISTRY_PREFIX:-ghcr.io/example}"
 export API_IMAGE="${REGISTRY_PREFIX}/enterprise-api:${PREVIOUS_TAG}"
 export WEB_IMAGE="${REGISTRY_PREFIX}/enterprise-web:${PREVIOUS_TAG}"
-export WORKER_IMAGE="${REGISTRY_PREFIX}/enterprise-worker:${PREVIOUS_TAG}"
 
 printf '%s\n' "$PREVIOUS_TAG" > "$STATE_DIR/last_tag.txt"
 
 echo "Rolling back to tag: $PREVIOUS_TAG"
-docker compose -f "$COMPOSE_FILE" pull web api admin-worker
-docker compose -f "$COMPOSE_FILE" up -d web api admin-worker
+docker compose -f "$COMPOSE_FILE" pull web api
+docker compose -f "$COMPOSE_FILE" up -d web api
 
 echo "Rollback completed."

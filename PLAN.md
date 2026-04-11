@@ -32,7 +32,7 @@
 
 ### 阶段完成标准
 
-- [ ] `pnpm i && pnpm dev` 可同时拉起 web/api/worker
+- [ ] `pnpm i && pnpm dev` 可同时拉起 web/api
 - [ ] 提交前自动执行 lint 与基础检查
 - [ ] README 启动说明可被严格复现
 
@@ -163,7 +163,7 @@
 
 ### 任务清单
 
-- [x] 编写多阶段 Dockerfile（web/api/worker）
+- [x] 编写多阶段 Dockerfile（web/api）
 - [x] 编写 docker-compose（dev/prod 两套）
 - [x] 健康检查、启动顺序、资源限制配置
 - [x] GitHub Actions：测试、构建镜像、推送仓库

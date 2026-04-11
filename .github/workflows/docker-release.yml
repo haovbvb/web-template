@@ -63,14 +63,3 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ github.repository_owner }}/enterprise-web:${{ steps.tag.outputs.value }}
             ${{ env.REGISTRY }}/${{ github.repository_owner }}/enterprise-web:latest
-
-      - name: Build and push worker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: infra/docker/Dockerfile.worker
-          target: prod
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/enterprise-worker:${{ steps.tag.outputs.value }}
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/enterprise-worker:latest

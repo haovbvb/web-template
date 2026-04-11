@@ -13,8 +13,8 @@ fi
 echo "[STEP] Validate compose file"
 docker compose -f "$DEV_COMPOSE" config >/dev/null
 
-echo "[STEP] Start core stack (api/web/worker + infra)"
-docker compose -f "$DEV_COMPOSE" up -d --build api web admin-worker redis postgres mongo
+echo "[STEP] Start core stack (api/web + infra)"
+docker compose -f "$DEV_COMPOSE" up -d --build api web redis postgres mongo
 
 echo "[STEP] Wait and inspect service states"
 sleep 10
