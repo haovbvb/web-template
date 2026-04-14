@@ -18,6 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.tag.outputs.value }}
+      owner_lower: ${{ steps.owner.outputs.value }}
     permissions:
       contents: read
       packages: write
@@ -44,6 +45,11 @@ jobs:
             echo "value=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Compute image owner
+        id: owner
+        run: |
+          echo "value=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
       - name: Build and push api image
         uses: docker/build-push-action@v6
         with:
@@ -52,8 +58,8 @@ jobs:
           target: prod
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/enterprise-api:${{ steps.tag.outputs.value }}
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/enterprise-api:latest
+            ${{ env.REGISTRY }}/${{ steps.owner.outputs.value }}/enterprise-api:${{ steps.tag.outputs.value }}
+            ${{ env.REGISTRY }}/${{ steps.owner.outputs.value }}/enterprise-api:latest
 
       - name: Build and push web image
         uses: docker/build-push-action@v6
@@ -63,8 +69,8 @@ jobs:
           target: prod
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/enterprise-web:${{ steps.tag.outputs.value }}
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/enterprise-web:latest
+            ${{ env.REGISTRY }}/${{ steps.owner.outputs.value }}/enterprise-web:${{ steps.tag.outputs.value }}
+            ${{ env.REGISTRY }}/${{ steps.owner.outputs.value }}/enterprise-web:latest
 
   deploy:
     runs-on: ubuntu-latest
@@ -75,6 +81,18 @@ jobs:
       group: prod-deploy
       cancel-in-progress: false
     steps:
+      - name: Upload production compose file
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: ${{ secrets.PROD_PORT || '22' }}
+          fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT }}
+          source: infra/docker/docker-compose.prod.yml
+          target: ${{ secrets.PROD_DEPLOY_PATH }}
+          strip_components: 2
+
       - name: Deploy to production server
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -82,6 +100,7 @@ jobs:
           username: ${{ secrets.PROD_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
           port: ${{ secrets.PROD_PORT || '22' }}
+          fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT }}
           script_stop: true
           script: |
             set -euo pipefail
@@ -95,14 +114,10 @@ jobs:
             mkdir -p "$DEPLOY_PATH"
             cd "$DEPLOY_PATH"
 
-            if [ ! -d .git ]; then
-              echo "Repository not found in $DEPLOY_PATH. Please clone the project on server first."
+            if [ ! -f "$DEPLOY_PATH/docker-compose.prod.yml" ]; then
+              echo "docker-compose.prod.yml not found in $DEPLOY_PATH"
               exit 1
             fi
-
-            git fetch --all --prune
-            git checkout main
-            git pull --ff-only origin main
 
             if [ -n "${{ secrets.PROD_ENV_FILE }}" ]; then
               printf '%s' "${{ secrets.PROD_ENV_FILE }}" > .env
@@ -111,7 +126,11 @@ jobs:
 
             echo "${{ secrets.GHCR_TOKEN }}" | docker login ${{ env.REGISTRY }} -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
 
-            export REGISTRY_PREFIX="${{ env.REGISTRY }}/${{ github.repository_owner }}"
-            bash infra/docker/deploy-test.sh "${{ needs.build-and-push.outputs.image_tag }}"
+            export REGISTRY_PREFIX="${{ env.REGISTRY }}/${{ needs.build-and-push.outputs.owner_lower }}"
+            export API_IMAGE="${REGISTRY_PREFIX}/enterprise-api:${{ needs.build-and-push.outputs.image_tag }}"
+            export WEB_IMAGE="${REGISTRY_PREFIX}/enterprise-web:${{ needs.build-and-push.outputs.image_tag }}"
+
+            docker compose -f docker-compose.prod.yml pull web api
+            docker compose -f docker-compose.prod.yml up -d web api
 
             docker image prune -f

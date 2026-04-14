@@ -125,7 +125,7 @@ docker compose -f infra/docker/docker-compose.prod.yml up -d
 2. 测试环境一键发布
 
 ```bash
-REGISTRY_PREFIX=ghcr.io/<your-org> ./infra/docker/deploy-test.sh <tag>
+REGISTRY_PREFIX=ghcr.io/<your-org> ./infra/docker/deploy-prod.sh <tag>
 ```
 
 3. 测试环境回滚
