@@ -1,20 +1,17 @@
 name: Docker Release
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: Custom image tag
-        required: false
-        default: ''
 
 env:
   REGISTRY: ghcr.io
 
 jobs:
   build-and-push:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.tag.outputs.value }}
@@ -25,6 +22,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Resolve source sha
+        id: source
+        run: |
+          echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
 
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -39,11 +43,9 @@ jobs:
       - name: Compute image tag
         id: tag
         run: |
-          if [ -n "${{ github.event.inputs.tag }}" ]; then
-            echo "value=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "value=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
-          fi
+          echo "value=${SOURCE_SHA::12}" >> "$GITHUB_OUTPUT"
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
 
       - name: Compute image owner
         id: owner
@@ -73,6 +75,7 @@ jobs:
             ${{ env.REGISTRY }}/${{ steps.owner.outputs.value }}/enterprise-web:latest
 
   deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     needs: build-and-push
     permissions:
@@ -81,7 +84,8 @@ jobs:
       group: prod-deploy
       cancel-in-progress: false
     steps:
-      - name: Upload production compose file
+      - name: Upload production compose file with fingerprint
+        if: ${{ secrets.PROD_SSH_FINGERPRINT != '' }}
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.PROD_HOST }}
@@ -93,7 +97,20 @@ jobs:
           target: ${{ secrets.PROD_DEPLOY_PATH }}
           strip_components: 2
 
-      - name: Deploy to production server
+      - name: Upload production compose file without fingerprint
+        if: ${{ secrets.PROD_SSH_FINGERPRINT == '' }}
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: ${{ secrets.PROD_PORT || '22' }}
+          source: infra/docker/docker-compose.prod.yml
+          target: ${{ secrets.PROD_DEPLOY_PATH }}
+          strip_components: 2
+
+      - name: Deploy to production server with fingerprint
+        if: ${{ secrets.PROD_SSH_FINGERPRINT != '' }}
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.PROD_HOST }}
@@ -101,6 +118,48 @@ jobs:
           key: ${{ secrets.PROD_SSH_KEY }}
           port: ${{ secrets.PROD_PORT || '22' }}
           fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+
+            DEPLOY_PATH="${{ secrets.PROD_DEPLOY_PATH }}"
+            if [ -z "$DEPLOY_PATH" ]; then
+              echo "PROD_DEPLOY_PATH is empty"
+              exit 1
+            fi
+
+            mkdir -p "$DEPLOY_PATH"
+            cd "$DEPLOY_PATH"
+
+            if [ ! -f "$DEPLOY_PATH/docker-compose.prod.yml" ]; then
+              echo "docker-compose.prod.yml not found in $DEPLOY_PATH"
+              exit 1
+            fi
+
+            if [ -n "${{ secrets.PROD_ENV_FILE }}" ]; then
+              printf '%s' "${{ secrets.PROD_ENV_FILE }}" > .env
+              chmod 600 .env
+            fi
+
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ${{ env.REGISTRY }} -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+
+            export REGISTRY_PREFIX="${{ env.REGISTRY }}/${{ needs.build-and-push.outputs.owner_lower }}"
+            export API_IMAGE="${REGISTRY_PREFIX}/enterprise-api:${{ needs.build-and-push.outputs.image_tag }}"
+            export WEB_IMAGE="${REGISTRY_PREFIX}/enterprise-web:${{ needs.build-and-push.outputs.image_tag }}"
+
+            docker compose -f docker-compose.prod.yml pull web api
+            docker compose -f docker-compose.prod.yml up -d web api
+
+            docker image prune -f
+
+      - name: Deploy to production server without fingerprint
+        if: ${{ secrets.PROD_SSH_FINGERPRINT == '' }}
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: ${{ secrets.PROD_PORT || '22' }}
           script_stop: true
           script: |
             set -euo pipefail
